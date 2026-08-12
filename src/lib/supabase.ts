@@ -33,7 +33,7 @@ function getLocalMembers(): Member[] {
       const initial: Member[] = [
         { id: '1', phone: '5551234567', name: 'Alex Rivera', check_in_count: 5, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
         { id: '2', phone: '5559876543', name: 'Sophia Chen', check_in_count: 12, created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
-        { id: '3', phone: '5555551234', name: 'Marcus Vance', check_in_count: 2, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
+        { id: '3', phone: '5555551234', name: 'Marcus Vance', check_in_count: 3, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
       ];
       localStorage.setItem(LOCAL_STORAGE_MEMBERS_KEY, JSON.stringify(initial));
       return initial;
@@ -56,9 +56,11 @@ function getLocalCheckIns(): CheckInRecord[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_CHECKINS_KEY);
     if (!raw) {
+      const now = Date.now();
       const initial: CheckInRecord[] = [
-        { id: 'c1', member_id: '1', member_name: 'Alex Rivera', phone: '5551234567', created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString() },
-        { id: 'c2', member_id: '2', member_name: 'Sophia Chen', phone: '5559876543', created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString() },
+        { id: 'c1', member_id: '1', member_name: 'Alex Rivera', phone: '5551234567', created_at: new Date(now - 1000 * 60 * 12).toISOString() },
+        { id: 'c2', member_id: '2', member_name: 'Sophia Chen', phone: '5559876543', created_at: new Date(now - 1000 * 60 * 45).toISOString() },
+        { id: 'c3', member_id: '3', member_name: 'Marcus Vance', phone: '5555551234', created_at: new Date(now - 1000 * 60 * 120).toISOString() },
       ];
       localStorage.setItem(LOCAL_STORAGE_CHECKINS_KEY, JSON.stringify(initial));
       return initial;

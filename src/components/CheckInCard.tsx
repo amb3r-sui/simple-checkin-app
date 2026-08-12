@@ -168,7 +168,7 @@ export const CheckInCard: React.FC<CheckInCardProps> = ({ onCheckInSuccess }) =>
                 value={phone}
                 onChange={handlePhoneChange}
                 placeholder="(555) 000-0000"
-                className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 text-white text-lg md:text-xl font-mono tracking-wide rounded-xl pl-12 pr-12 py-3.5 outline-none transition"
+                className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 text-white text-lg md:text-xl font-mono tracking-wide rounded-xl pl-14 pr-12 py-3.5 outline-none transition"
               />
               {phone && (
                 <button
