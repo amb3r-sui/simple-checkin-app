@@ -6,7 +6,7 @@ import { RecentActivity } from './components/RecentActivity';
 import { SuccessToast } from './components/SuccessToast';
 import { getAppStats, getRecentCheckedInPeople, subscribeToPeopleChanges } from './lib/supabase';
 import type { Person, CheckInResult, AppStats } from './types';
-import { Database, ShieldCheck } from 'lucide-react';
+import { Database, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [stats, setStats] = useState<AppStats>({ checkedInCount: 0, totalPeopleCount: 0, todayCount: 0 });
@@ -71,7 +71,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen px-4 md:px-6 lg:px-8 max-w-5xl mx-auto py-6 flex flex-col justify-between relative">
+    <div className="min-h-screen px-4 md:px-6 lg:px-8 max-w-6xl mx-auto py-6 sm:py-8 flex flex-col justify-between relative">
       {/* Animated Success Toast Banner */}
       <SuccessToast person={toastPerson} onClose={() => setToastPerson(null)} />
 
@@ -95,17 +95,19 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="border-t border-slate-800/80 pt-5 pb-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-        <div className="flex items-center gap-1.5">
+      {/* Footer */}
+      <footer className="border-t border-slate-800/80 pt-6 pb-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800/60">
           <Database className="w-3.5 h-3.5 text-indigo-400" />
           <span>Powered by Supabase Database</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 text-slate-400 font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <span>ExpressCheck Portal v2.0</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800/60">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Realtime Enabled & Secure</span>
+          <span>Realtime Synchronized & Secure</span>
         </div>
       </footer>
     </div>
