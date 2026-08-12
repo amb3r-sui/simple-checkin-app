@@ -18,4 +18,5 @@ export interface CheckInResult {
 export interface AppStats {
   checkedInCount: number;
   totalPeopleCount: number;
+  todayCount: number;
 }

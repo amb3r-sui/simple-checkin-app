@@ -1,10 +1,11 @@
-import { History, UserCheck, Clock } from 'lucide-react';
+import { History, UserCheck, Clock, Sparkles } from 'lucide-react';
 import type { Person } from '../types';
-import { formatPhone } from '../lib/supabase';
+import { formatPhone } from '../lib/phone';
 
 interface Props {
   people: Person[];
   isLoading: boolean;
+  highlightedId?: string | null;
 }
 
 const relTime = (iso: string | null) => {
@@ -31,19 +32,19 @@ const maskPhone = (phone: string) => {
   return '••••';
 };
 
-export const RecentActivity = ({ people, isLoading }: Props) => (
-  <div className="glass-card h-full flex flex-col">
-    <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800/60">
+export const RecentActivity = ({ people, isLoading, highlightedId }: Props) => (
+  <div className="glass-card h-full flex flex-col shadow-xl overflow-hidden">
+    <div className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-slate-800/80">
       <h3 className="text-sm font-bold text-white flex items-center gap-2">
         <History className="w-4 h-4 text-indigo-400" />
         Recent Activity
       </h3>
       <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Feed
       </span>
     </div>
 
-    <div className="flex-1 overflow-y-auto px-4 py-4">
+    <div className="flex-1 overflow-y-auto px-3.5 py-3.5 max-h-[460px]">
       {isLoading ? (
         <div className="space-y-2.5">
           {[1, 2, 3, 4].map(i => (
@@ -51,34 +52,62 @@ export const RecentActivity = ({ people, isLoading }: Props) => (
           ))}
         </div>
       ) : people.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
-          <UserCheck className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-xs">No checked-in people yet</p>
+        <div className="text-center py-14 px-4 text-slate-500">
+          <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-600">
+            <UserCheck className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-semibold text-slate-300">No Check-Ins Yet Today</p>
+          <p className="text-xs text-slate-500 mt-1 max-w-[200px] mx-auto">
+            Check-ins will appear here live as members check in.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {people.map(p => (
-            <div
-              key={p.id}
-              className="bg-slate-900/50 hover:bg-slate-800/50 border border-slate-800/60 hover:border-slate-700/60 rounded-xl px-3.5 py-3 flex items-center justify-between transition group"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-sm shrink-0">
-                  {p.name.charAt(0).toUpperCase()}
+          {people.map(p => {
+            const isHighlighted = p.id === highlightedId;
+            return (
+              <div
+                key={p.id}
+                className={`rounded-xl px-3.5 py-3 flex items-center justify-between transition-all duration-300 ${
+                  isHighlighted
+                    ? 'bg-gradient-to-r from-emerald-500/20 via-indigo-500/20 to-purple-500/20 border-2 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-[1.01]'
+                    : 'bg-slate-900/60 hover:bg-slate-800/60 border border-slate-800 hover:border-slate-700/80'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 border ${
+                      isHighlighted
+                        ? 'bg-emerald-500 text-white border-emerald-300 animate-bounce-short'
+                        : 'bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border-indigo-500/30 text-indigo-300'
+                    }`}
+                  >
+                    {isHighlighted ? (
+                      <Sparkles className="w-4 h-4 text-white" />
+                    ) : (
+                      p.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p
+                      className={`text-xs font-semibold truncate transition ${
+                        isHighlighted ? 'text-emerald-300 font-extrabold text-sm' : 'text-slate-100'
+                      }`}
+                    >
+                      {p.name}
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-mono">{maskPhone(p.phone)}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-100 group-hover:text-white transition truncate">
-                    {p.name}
-                  </p>
-                  <p className="text-[11px] text-slate-500 font-mono">{maskPhone(p.phone)}</p>
+                <div className="flex items-center gap-1 text-[11px] text-slate-400 shrink-0 ml-2">
+                  <Clock className="w-3 h-3 text-slate-500" />
+                  <span className={isHighlighted ? 'text-emerald-400 font-bold' : ''}>
+                    {relTime(p.checked_in_at)}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-400 shrink-0 ml-2">
-                <Clock className="w-3 h-3 text-slate-500" />
-                <span>{relTime(p.checked_in_at)}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
