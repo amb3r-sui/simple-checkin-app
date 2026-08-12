@@ -1,49 +1,55 @@
-import { CheckCircle2, Users, CalendarCheck2 } from 'lucide-react';
+import { CheckCircle2, Users } from 'lucide-react';
 
 interface StatsProps {
-  totalCheckIns: number;
-  totalMembers: number;
-  todayCheckIns: number;
+  checkedInCount: number;
+  totalPeopleCount: number;
   isBumping?: boolean;
 }
 
-const cards = [
-  { key: 'checkins', label: 'Total Check-Ins', sub: 'all time', Icon: CheckCircle2, color: 'indigo' },
-  { key: 'members', label: 'Members', sub: 'registered', Icon: Users, color: 'violet' },
-  { key: 'today', label: "Today's Visits", sub: 'today', Icon: CalendarCheck2, color: 'emerald' },
-] as const;
-
-const colorMap: Record<string, { icon: string; badge: string; glow: string }> = {
-  indigo: { icon: 'text-indigo-400', badge: 'bg-indigo-500/10 border-indigo-500/20', glow: 'bg-indigo-500/5' },
-  violet: { icon: 'text-violet-400', badge: 'bg-violet-500/10 border-violet-500/20', glow: 'bg-violet-500/5' },
-  emerald: { icon: 'text-emerald-400', badge: 'bg-emerald-500/10 border-emerald-500/20', glow: 'bg-emerald-500/5' },
-};
-
-export const StatsOverview = ({ totalCheckIns, totalMembers, todayCheckIns, isBumping }: StatsProps) => {
-  const values = { checkins: totalCheckIns, members: totalMembers, today: todayCheckIns };
-
+export const StatsOverview = ({ checkedInCount, totalPeopleCount, isBumping }: StatsProps) => {
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
-      {cards.map(({ key, label, sub, Icon, color }) => {
-        const c = colorMap[color];
-        return (
-          <div key={key} className="glass-card p-5 relative overflow-hidden">
-            <div className={`absolute -top-8 -right-8 w-24 h-24 rounded-full ${c.glow} blur-2xl`} />
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
-              <div className={`w-8 h-8 rounded-lg ${c.badge} border flex items-center justify-center`}>
-                <Icon className={`w-4 h-4 ${c.icon}`} />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-3xl font-extrabold text-white tabular-nums tracking-tight ${key === 'checkins' && isBumping ? 'count-bump' : ''}`}>
-                {values[key].toLocaleString()}
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">{sub}</span>
-            </div>
+    <div className="grid grid-cols-2 gap-4 mb-6">
+      {/* Primary Running Count Card */}
+      <div className="glass-card p-5 relative overflow-hidden bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/40 border-indigo-500/20">
+        <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Checked In
+          </span>
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
-        );
-      })}
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span
+            className={`text-4xl font-extrabold text-white tracking-tight tabular-nums ${
+              isBumping ? 'count-bump' : ''
+            }`}
+          >
+            {checkedInCount.toLocaleString()}
+          </span>
+          <span className="text-xs text-indigo-300 font-medium">active</span>
+        </div>
+      </div>
+
+      {/* Total People Registered */}
+      <div className="glass-card p-5 relative overflow-hidden bg-slate-900/60 border-slate-800">
+        <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-violet-500/10 blur-2xl pointer-events-none" />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Total People
+          </span>
+          <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400">
+            <Users className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-extrabold text-white tracking-tight tabular-nums">
+            {totalPeopleCount.toLocaleString()}
+          </span>
+          <span className="text-xs text-slate-400 font-medium">registered</span>
+        </div>
+      </div>
     </div>
   );
 };

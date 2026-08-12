@@ -1,171 +1,277 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Person, CheckInResult, AppStats } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface Member {
-  id: string;
-  phone: string;
-  name: string;
-  check_in_count: number;
-  created_at: string;
+const LS_PEOPLE = 'checkin_app_people';
+
+export function isSupabaseConfigured(): boolean {
+  return (
+    Boolean(supabaseUrl) &&
+    Boolean(supabaseAnonKey) &&
+    supabaseUrl !== 'https://placeholder.supabase.co' &&
+    !supabaseUrl.includes('placeholder')
+  );
 }
 
-export interface CheckInRecord {
-  id: string;
-  member_id: string;
-  member_name: string;
-  phone: string;
-  created_at: string;
+/**
+ * Normalizes phone numbers by trimming whitespace and stripping all non-digit characters.
+ * E.g., "(0917) 123-4567" -> "09171234567"
+ */
+export function normalizePhone(raw: string): string {
+  if (!raw) return '';
+  return raw.trim().replace(/\D/g, '');
 }
 
-const LS_MEMBERS = 'ec_members';
-const LS_CHECKINS = 'ec_checkins';
-
-function getLocalMembers(): Member[] {
-  try {
-    const raw = localStorage.getItem(LS_MEMBERS);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  const seed: Member[] = [
-    { id: '1', phone: '5551234567', name: 'Alex Rivera', check_in_count: 5, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
-    { id: '2', phone: '5559876543', name: 'Sophia Chen', check_in_count: 12, created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
-    { id: '3', phone: '5555551234', name: 'Marcus Vance', check_in_count: 3, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-  ];
-  localStorage.setItem(LS_MEMBERS, JSON.stringify(seed));
-  return seed;
-}
-
-function getLocalCheckIns(): CheckInRecord[] {
-  try {
-    const raw = localStorage.getItem(LS_CHECKINS);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  const now = Date.now();
-  const seed: CheckInRecord[] = [
-    { id: 'c1', member_id: '1', member_name: 'Alex Rivera', phone: '5551234567', created_at: new Date(now - 1000 * 60 * 8).toISOString() },
-    { id: 'c2', member_id: '2', member_name: 'Sophia Chen', phone: '5559876543', created_at: new Date(now - 1000 * 60 * 35).toISOString() },
-    { id: 'c3', member_id: '3', member_name: 'Marcus Vance', phone: '5555551234', created_at: new Date(now - 1000 * 60 * 90).toISOString() },
-  ];
-  localStorage.setItem(LS_CHECKINS, JSON.stringify(seed));
-  return seed;
-}
-
-function saveMembers(m: Member[]) { try { localStorage.setItem(LS_MEMBERS, JSON.stringify(m)); } catch { /* */ } }
-function saveCheckIns(c: CheckInRecord[]) { try { localStorage.setItem(LS_CHECKINS, JSON.stringify(c)); } catch { /* */ } }
-
-export function normalizePhone(raw: string): string { return raw.replace(/\D/g, ''); }
-
+/**
+ * Formats a raw phone string for clear display in UI.
+ */
 export function formatPhone(raw: string): string {
-  const d = normalizePhone(raw);
-  if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
-  if (d.length === 11 && d[0] === '1') return `+1 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`;
-  return raw;
-}
-
-// Check if Supabase is actually configured (not placeholder)
-function isSupabaseConfigured(): boolean {
-  return supabaseUrl !== 'https://placeholder.supabase.co' && !supabaseUrl.includes('placeholder');
-}
-
-export async function findMemberByPhone(phone: string): Promise<Member | null> {
-  const clean = normalizePhone(phone);
-  if (!clean) return null;
-
-  if (isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase.from('members').select('*').eq('phone', clean).maybeSingle();
-      if (!error && data) return data as Member;
-    } catch { /* fallthrough */ }
+  const digits = normalizePhone(raw);
+  if (digits.length === 11 && digits.startsWith('0')) {
+    // Standard 11-digit local format, e.g., 09171234567 -> 0917 123 4567
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
   }
-
-  const members = getLocalMembers();
-  return members.find(m => normalizePhone(m.phone) === clean) || null;
-}
-
-export async function registerNewMember(phone: string, name: string): Promise<Member> {
-  const clean = normalizePhone(phone);
-  const trimName = name.trim();
-
-  if (isSupabaseConfigured()) {
-    try {
-      const { data, error } = await supabase.from('members').insert([{ phone: clean, name: trimName, check_in_count: 0 }]).select().single();
-      if (!error && data) return data as Member;
-    } catch { /* fallthrough */ }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
-
-  const members = getLocalMembers();
-  const newMember: Member = {
-    id: 'm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-    phone: clean,
-    name: trimName,
-    check_in_count: 0,
-    created_at: new Date().toISOString(),
-  };
-  members.push(newMember);
-  saveMembers(members);
-  return newMember;
+  return raw.trim();
 }
 
-export async function performCheckIn(member: Member): Promise<{ member: Member; checkIn: CheckInRecord }> {
-  const newCount = (member.check_in_count || 0) + 1;
-  const now = new Date().toISOString();
-  let updated: Member = { ...member, check_in_count: newCount };
-  let record: CheckInRecord = { id: 'ci_' + Date.now(), member_id: member.id, member_name: member.name, phone: member.phone, created_at: now };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const { data: md } = await supabase.from('members').update({ check_in_count: newCount }).eq('id', member.id).select().single();
-      if (md) updated = md as Member;
-      const { data: cd } = await supabase.from('check_ins').insert([{ member_id: member.id, member_name: member.name, phone: member.phone }]).select().single();
-      if (cd) record = cd as CheckInRecord;
-    } catch { /* fallthrough */ }
-  }
-
-  const members = getLocalMembers();
-  const idx = members.findIndex(m => m.id === member.id || normalizePhone(m.phone) === normalizePhone(member.phone));
-  if (idx >= 0) members[idx] = updated; else members.push(updated);
-  saveMembers(members);
-
-  const checkins = getLocalCheckIns();
-  checkins.unshift(record);
-  saveCheckIns(checkins);
-
-  return { member: updated, checkIn: record };
+/* LocalStorage fallback helpers */
+function getLocalPeople(): Person[] {
+  try {
+    const raw = localStorage.getItem(LS_PEOPLE);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  const seed: Person[] = [
+    {
+      id: 'p-1',
+      phone: '09171234567',
+      name: 'Alex Rivera',
+      checked_in: true,
+      checked_in_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+    },
+    {
+      id: 'p-2',
+      phone: '09189876543',
+      name: 'Sophia Chen',
+      checked_in: true,
+      checked_in_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    },
+    {
+      id: 'p-3',
+      phone: '09195551234',
+      name: 'Marcus Vance',
+      checked_in: false,
+      checked_in_at: null,
+      created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+    },
+  ];
+  try { localStorage.setItem(LS_PEOPLE, JSON.stringify(seed)); } catch { /* ignore */ }
+  return seed;
 }
 
-export async function getDashboardStats(): Promise<{ totalCheckIns: number; totalMembers: number; todayCheckIns: number }> {
+function saveLocalPeople(people: Person[]) {
+  try {
+    localStorage.setItem(LS_PEOPLE, JSON.stringify(people));
+  } catch { /* ignore */ }
+}
+
+/**
+ * Retrieves statistics: current checked-in count and total registered people.
+ */
+export async function getAppStats(): Promise<AppStats> {
   if (isSupabaseConfigured()) {
     try {
-      const [ci, mem, today] = await Promise.all([
-        supabase.from('check_ins').select('*', { count: 'exact', head: true }),
-        supabase.from('members').select('*', { count: 'exact', head: true }),
-        supabase.from('check_ins').select('*', { count: 'exact', head: true }).gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString()),
+      const [checkedInRes, totalRes] = await Promise.all([
+        supabase.from('people').select('*', { count: 'exact', head: true }).eq('checked_in', true),
+        supabase.from('people').select('*', { count: 'exact', head: true }),
       ]);
-      if (!ci.error && !mem.error && ci.count !== null && mem.count !== null) {
-        return { totalCheckIns: ci.count, totalMembers: mem.count, todayCheckIns: today.count || 0 };
+      if (!checkedInRes.error && checkedInRes.count !== null) {
+        return {
+          checkedInCount: checkedInRes.count,
+          totalPeopleCount: totalRes.count ?? checkedInRes.count,
+        };
       }
-    } catch { /* fallthrough */ }
+    } catch (err) {
+      console.warn('Supabase stats fetch error, using local fallback:', err);
+    }
   }
 
-  const checkins = getLocalCheckIns();
-  const members = getLocalMembers();
-  const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+  const people = getLocalPeople();
   return {
-    totalCheckIns: checkins.length,
-    totalMembers: members.length,
-    todayCheckIns: checkins.filter(c => new Date(c.created_at) >= startOfDay).length,
+    checkedInCount: people.filter(p => p.checked_in).length,
+    totalPeopleCount: people.length,
   };
 }
 
-export async function getRecentCheckIns(limit = 10): Promise<CheckInRecord[]> {
+/**
+ * Retrieves recent checked-in people list for live activity feed.
+ */
+export async function getRecentCheckedInPeople(limit = 10): Promise<Person[]> {
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase.from('check_ins').select('*').order('created_at', { ascending: false }).limit(limit);
-      if (!error && data && data.length > 0) return data as CheckInRecord[];
-    } catch { /* fallthrough */ }
+      const { data, error } = await supabase
+        .from('people')
+        .select('*')
+        .eq('checked_in', true)
+        .order('checked_in_at', { ascending: false })
+        .limit(limit);
+      if (!error && data) return data as Person[];
+    } catch (err) {
+      console.warn('Supabase recent list fetch error, using fallback:', err);
+    }
   }
-  return getLocalCheckIns().slice(0, limit);
+
+  const people = getLocalPeople();
+  return people
+    .filter(p => p.checked_in && p.checked_in_at)
+    .sort((a, b) => new Date(b.checked_in_at!).getTime() - new Date(a.checked_in_at!).getTime())
+    .slice(0, limit);
+}
+
+/**
+ * Primary Check-In operation for an existing phone number.
+ */
+export async function checkInByPhone(rawPhone: string): Promise<CheckInResult> {
+  const cleanPhone = normalizePhone(rawPhone);
+  if (!cleanPhone) {
+    throw new Error('Please enter a valid phone number.');
+  }
+
+  if (isSupabaseConfigured()) {
+    try {
+      // 1. Search by phone
+      const { data: existing, error: searchErr } = await supabase
+        .from('people')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+
+      if (searchErr) throw searchErr;
+
+      if (!existing) {
+        return {
+          status: 'not_found',
+          person: null,
+          message: 'Phone number not found.',
+        };
+      }
+
+      const person = existing as Person;
+
+      // 2. Check if already checked in
+      if (person.checked_in) {
+        return {
+          status: 'already_checked_in',
+          person,
+          message: `Already checked in: ${person.name}`,
+        };
+      }
+
+      // 3. Mark as checked in
+      const nowIso = new Date().toISOString();
+      const { data: updated, error: updateErr } = await supabase
+        .from('people')
+        .update({ checked_in: true, checked_in_at: nowIso })
+        .eq('id', person.id)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+
+      return {
+        status: 'checked_in',
+        person: updated as Person,
+        message: `Checked in: ${(updated as Person).name}`,
+      };
+    } catch (err) {
+      console.error('Supabase check-in error:', err);
+      // Fallback to local if network error
+    }
+  }
+
+  // LocalStorage Fallback logic
+  const people = getLocalPeople();
+  const existingIdx = people.findIndex(p => normalizePhone(p.phone) === cleanPhone);
+
+  if (existingIdx === -1) {
+    return { status: 'not_found', person: null, message: 'Phone number not found.' };
+  }
+
+  const person = people[existingIdx];
+  if (person.checked_in) {
+    return { status: 'already_checked_in', person, message: `Already checked in: ${person.name}` };
+  }
+
+  const updated: Person = {
+    ...person,
+    checked_in: true,
+    checked_in_at: new Date().toISOString(),
+  };
+  people[existingIdx] = updated;
+  saveLocalPeople(people);
+
+  return { status: 'checked_in', person: updated, message: `Checked in: ${updated.name}` };
+}
+
+/**
+ * Register a new person and immediately mark them as checked in.
+ */
+export async function registerAndCheckIn(rawPhone: string, rawName: string): Promise<CheckInResult> {
+  const cleanPhone = normalizePhone(rawPhone);
+  const trimmedName = rawName.trim();
+
+  if (!cleanPhone) throw new Error('Invalid phone number.');
+  if (!trimmedName) throw new Error('Please enter your name.');
+
+  const nowIso = new Date().toISOString();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const { data: created, error } = await supabase
+        .from('people')
+        .insert([
+          {
+            phone: cleanPhone,
+            name: trimmedName,
+            checked_in: true,
+            checked_in_at: nowIso,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        status: 'checked_in',
+        person: created as Person,
+        message: `Checked in: ${(created as Person).name}`,
+      };
+    } catch (err) {
+      console.error('Supabase registration error:', err);
+    }
+  }
+
+  // LocalStorage Fallback
+  const people = getLocalPeople();
+  const newPerson: Person = {
+    id: 'p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+    phone: cleanPhone,
+    name: trimmedName,
+    checked_in: true,
+    checked_in_at: nowIso,
+    created_at: nowIso,
+  };
+  people.push(newPerson);
+  saveLocalPeople(people);
+
+  return { status: 'checked_in', person: newPerson, message: `Checked in: ${newPerson.name}` };
 }

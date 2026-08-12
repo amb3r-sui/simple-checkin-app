@@ -1,46 +1,33 @@
--- Supabase Schema for Simple Check-In Web Application
--- Run this script in your Supabase SQL Editor to create the required tables & policies.
+-- Supabase DDL Schema for Simple Check-In Web Application
+-- Copy and paste this script into your Supabase SQL Editor to create the required table & security policies.
 
--- 1. Create Members Table
-CREATE TABLE IF NOT EXISTS public.members (
+-- 1. Create the `people` table
+CREATE TABLE IF NOT EXISTS public.people (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     phone TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    check_in_count INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    checked_in BOOLEAN DEFAULT FALSE,
+    checked_in_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Create Check-Ins Table
-CREATE TABLE IF NOT EXISTS public.check_ins (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    member_id UUID REFERENCES public.members(id) ON DELETE CASCADE,
-    member_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- 2. Enable Row Level Security (RLS)
+ALTER TABLE public.people ENABLE ROW LEVEL SECURITY;
 
--- 3. Enable Row Level Security (RLS)
-ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.check_ins ENABLE ROW LEVEL SECURITY;
-
--- 4. Create Policies for Public / Anonymous Access (For Check-In Kiosk mode)
--- Members table policies
-CREATE POLICY "Allow public select on members" ON public.members
+-- 3. RLS Policies for Anonymous / Kiosk Access
+-- Allow anonymous users to view people (for phone lookup & checked-in count)
+CREATE POLICY "Allow public select on people" ON public.people
     FOR SELECT USING (true);
 
-CREATE POLICY "Allow public insert on members" ON public.members
+-- Allow anonymous users to insert new people
+CREATE POLICY "Allow public insert on people" ON public.people
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow public update on members" ON public.members
+-- Allow anonymous users to update checked_in status & checked_in_at timestamp
+CREATE POLICY "Allow public update on people" ON public.people
     FOR UPDATE USING (true);
 
--- Check-ins table policies
-CREATE POLICY "Allow public select on check_ins" ON public.check_ins
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on check_ins" ON public.check_ins
-    FOR INSERT WITH CHECK (true);
-
--- 5. Create Indexes for fast phone lookups and recent check-ins queries
-CREATE INDEX IF NOT EXISTS idx_members_phone ON public.members(phone);
-CREATE INDEX IF NOT EXISTS idx_check_ins_created_at ON public.check_ins(created_at DESC);
+-- 4. Create Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_people_phone ON public.people(phone);
+CREATE INDEX IF NOT EXISTS idx_people_checked_in ON public.people(checked_in);
+CREATE INDEX IF NOT EXISTS idx_people_checked_in_at ON public.people(checked_in_at DESC);
