@@ -1,91 +1,74 @@
-import React from 'react';
 import { History, UserCheck, Clock } from 'lucide-react';
-import { type CheckInRecord, formatPhoneNumber } from '../lib/supabase';
+import { type CheckInRecord, formatPhone } from '../lib/supabase';
 
-interface ActivityProps {
+interface Props {
   checkIns: CheckInRecord[];
   isLoading: boolean;
 }
 
-export const RecentActivity: React.FC<ActivityProps> = ({ checkIns, isLoading }) => {
-  const getRelativeTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const now = new Date();
-      const diffSecs = Math.floor((now.getTime() - date.getTime()) / 1000);
+const relTime = (iso: string) => {
+  try {
+    const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (secs < 10) return 'Just now';
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+};
 
-      if (diffSecs < 10) return 'Just now';
-      if (diffSecs < 60) return `${diffSecs}s ago`;
-      const diffMins = Math.floor(diffSecs / 60);
-      if (diffMins < 60) return `${diffMins}m ago`;
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) return `${diffHours}h ago`;
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    } catch {
-      return 'Recently';
-    }
-  };
+const maskPhone = (phone: string) => {
+  const f = formatPhone(phone);
+  return f.length > 6 ? f.slice(0, -4) + '••••' : '•••-••••';
+};
 
-  const maskPhone = (phone: string) => {
-    const formatted = formatPhoneNumber(phone);
-    if (formatted.length > 7) {
-      return formatted.substring(0, formatted.length - 4) + '****';
-    }
-    return '***-****';
-  };
+export const RecentActivity = ({ checkIns, isLoading }: Props) => (
+  <div className="glass-card h-full flex flex-col">
+    <div className="flex items-center justify-between px-6 pt-6 pb-4">
+      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+        <History className="w-4 h-4 text-violet-400" />
+        Recent Activity
+      </h3>
+      <span className="text-[10px] text-slate-500 font-semibold bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/40">
+        Live
+      </span>
+    </div>
 
-  return (
-    <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <History className="w-5 h-5 text-pink-400" />
-          Recent Check-Ins Feed
-        </h3>
-        <span className="text-xs text-slate-400 font-medium bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700/50">
-          Live Realtime
-        </span>
-      </div>
-
+    <div className="flex-1 overflow-y-auto px-4 pb-4">
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 bg-slate-800/40 rounded-xl animate-pulse"></div>
-          ))}
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-800/30 rounded-lg animate-pulse" />)}
         </div>
       ) : checkIns.length === 0 ? (
-        <div className="text-center py-8 text-slate-500">
-          <UserCheck className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No check-ins logged yet today.</p>
+        <div className="text-center py-12 text-slate-600">
+          <UserCheck className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-xs">No check-ins yet</p>
         </div>
       ) : (
-        <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-          {checkIns.map((record) => (
-            <div
-              key={record.id}
-              className="bg-slate-900/60 hover:bg-slate-800/70 border border-slate-800 hover:border-slate-700/70 rounded-xl p-3.5 flex items-center justify-between transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-pink-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-sm">
-                  {record.member_name ? record.member_name.charAt(0).toUpperCase() : '?'}
+        <div className="space-y-1.5">
+          {checkIns.map(r => (
+            <div key={r.id} className="bg-slate-900/40 hover:bg-slate-800/40 border border-slate-800/40 hover:border-slate-700/40 rounded-lg px-3.5 py-2.5 flex items-center justify-between transition group">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/15 to-violet-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-xs shrink-0">
+                  {r.member_name?.charAt(0).toUpperCase() || '?'}
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition">
-                    {record.member_name || 'Anonymous Member'}
-                  </h4>
-                  <span className="text-xs text-slate-400 font-mono">
-                    {maskPhone(record.phone)}
-                  </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-200 group-hover:text-white transition truncate">
+                    {r.member_name || 'Unknown'}
+                  </p>
+                  <span className="text-[10px] text-slate-500 font-mono">{maskPhone(r.phone)}</span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                <span>{getRelativeTime(record.created_at)}</span>
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0 ml-2">
+                <Clock className="w-3 h-3" />
+                <span>{relTime(r.created_at)}</span>
               </div>
             </div>
           ))}
         </div>
       )}
     </div>
-  );
-};
+  </div>
+);
